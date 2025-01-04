@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from .xslt_transformer import transform_xml
 from .utils import parse_xml, modify_xml
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
