@@ -1,0 +1,7 @@
+<catalog>
+            <book>
+                <title lang="en">Python Basics</title>
+                <author>John Doe</author>
+                <price>35.99</price>
+            </book>
+        </catalog>

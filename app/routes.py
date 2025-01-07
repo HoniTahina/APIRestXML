@@ -90,16 +90,99 @@ def transform():
 # Point de terminaison pour modifier un élément XML
 @main_blueprint.route('/modify', methods=['POST'])
 def modify():
-    xml_file = request.files.get('xml')
-    element = request.json.get('element')
-    new_value = request.json.get('value')
+    xml_file = request.files.get('xml')  # Récupérer le fichier XML
+    element = request.form.get('element')  # Récupérer l'élément depuis form-data
+    new_value = request.form.get('value')  # Récupérer la nouvelle valeur depuis form-data
 
     if not xml_file or not element or not new_value:
-        return jsonify({"message": "XML file, element, and new value are required"}), 400
+        return jsonify({"message": "Fichier XML, élément et nouvelle valeur requis"}), 400
 
     xml_data = xml_file.read()
     try:
         modified_xml = modify_xml(xml_data, element, new_value)
-        return jsonify({"message": "XML modified successfully", "data": modified_xml}), 200
+        # Sauvegarde dans le dossier "modify"
+        output_filename = f"modify/{xml_file.filename}"  # Nom du fichier modifié
+        with open(output_filename, "w", encoding="utf-8") as f:
+            f.write(modified_xml)
+
+        return jsonify({"message": f"XML modifié avec succès et sauvegardé dans '{output_filename}'"}), 200
     except Exception as e:
-        return jsonify({"message": f"Error during modification: {str(e)}"}), 500
+        return jsonify({"message": f"Erreur lors de la modification : {str(e)}"}), 500
+
+@main_blueprint.route('/add', methods=['POST'])
+def add_book():
+    xml_file = request.files.get('xml')  # Fichier XML
+    title = request.form.get('title')  # Titre du livre
+    lang = request.form.get('lang')  # Langue
+    author = request.form.get('author')  # Auteur
+    price = request.form.get('price')  # Prix
+
+    if not xml_file or not title or not lang or not author or not price:
+        return jsonify({"message": "Fichier XML, titre, langue, auteur et prix requis"}), 400
+
+    try:
+        # Lire le fichier XML
+        xml_data = xml_file.read()
+        root = etree.fromstring(xml_data)
+
+        # Créer un nouvel élément <book>
+        new_book = etree.Element("book")
+        title_element = etree.SubElement(new_book, "title", lang=lang)
+        title_element.text = title
+        author_element = etree.SubElement(new_book, "author")
+        author_element.text = author
+        price_element = etree.SubElement(new_book, "price")
+        price_element.text = price
+
+        # Ajouter le nouveau livre au catalogue
+        root.append(new_book)
+
+        # Convertir en XML
+        modified_xml = etree.tostring(root, pretty_print=True, encoding="unicode")
+
+        # Sauvegarder le fichier modifié
+        output_filename = f"modify/{xml_file.filename}"
+        with open(output_filename, "w", encoding="utf-8") as f:
+            f.write(modified_xml)
+
+        return jsonify({"message": f"Livre ajouté avec succès et sauvegardé dans '{output_filename}'"}), 200
+    except Exception as e:
+        return jsonify({"message": f"Erreur lors de l'ajout : {str(e)}"}), 500
+
+@main_blueprint.route('/delete', methods=['POST'])
+def delete_book():
+    xml_file = request.files.get('xml')  # Récupérer le fichier XML
+    title_to_delete = request.form.get('title')  # Titre du livre à supprimer
+
+    if not xml_file or not title_to_delete:
+        return jsonify({"message": "Fichier XML et titre requis pour la suppression"}), 400
+
+    try:
+        # Lire le fichier XML
+        xml_data = xml_file.read()
+        root = etree.fromstring(xml_data)
+
+        # Trouver et supprimer le livre avec le titre spécifié
+        books = root.findall("book")
+        book_found = False
+        for book in books:
+            title = book.find("title")
+            if title is not None and title.text.strip() == title_to_delete:
+                root.remove(book)
+                book_found = True
+                break
+
+        if not book_found:
+            return jsonify({"message": f"Livre avec le titre '{title_to_delete}' introuvable"}), 404
+
+        # Convertir en XML
+        modified_xml = etree.tostring(root, pretty_print=True, encoding="unicode")
+
+        # Sauvegarder le fichier modifié
+        output_filename = f"modify/{xml_file.filename}"
+        with open(output_filename, "w", encoding="utf-8") as f:
+            f.write(modified_xml)
+
+        return jsonify({"message": f"Livre '{title_to_delete}' supprimé avec succès et sauvegardé dans '{output_filename}'"}), 200
+    except Exception as e:
+        return jsonify({"message": f"Erreur lors de la suppression : {str(e)}"}), 500
